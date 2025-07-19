@@ -1,0 +1,49 @@
+import requests,json,csv
+
+url="https://ncpscxx.moa.gov.cn/product/homeWholesaleProduct/selectTree"
+res_1=requests.post(url,verify=False)
+data=json.loads(res_1.text)
+
+def extract_products(nodes, result=None):
+    if result is None:
+        result = {}
+    for node in nodes:
+        if node.get('level') == '3':
+            result[node['label']] = node['id']
+        elif 'children' in node and node['children'] is not None:
+            extract_products(node['children'], result)
+    return result
+
+
+product_id_map = extract_products(data['data'])
+for key,value in product_id_map.items():
+    print(key,value)
+print("请输入查询的产品编号") 
+prId=input()
+print("请输入查询的省份") 
+prov=input()
+print("请输入查询的时间类型(日：r，月：m，年：y),选项为：r,m,y") 
+type=input()
+print("请输入查询的开始时间") 
+sTime=input()
+print("请输入查询的结束时间") 
+eTime=input()
+
+url_1="https://ncpscxx.moa.gov.cn/product/homeWholesalePrice/selectWholesalePrice?startTime={startTime}&endTime={endTime}&productId={productId}&marketName=&province={province}&timetype={timetype}"
+url=url_1.format(productId=prId,province=prov,timetype=type,startTime=sTime,endTime=eTime)
+print(url)
+res=requests.post(url,verify=False)
+
+data=json.loads(res.text)
+print(data)
+dates = data["data"]["names"]
+prices = data["data"]["values"][0]
+
+with open(f"{prId}.csv", "w", encoding="utf-8", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow([prId,prov,type,sTime,eTime])
+    writer.writerow(['日期', '价格'])
+    for date, price in zip(dates, prices):
+        writer.writerow([date, price])
+
+    print(f"数据已成功写入 {prId}.csv 文件")
